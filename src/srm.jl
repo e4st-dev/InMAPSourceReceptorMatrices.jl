@@ -1,0 +1,116 @@
+@doc """
+    get_srm(emis_type) -> srm::Array{Float32, 3}
+
+Returns source receptor matrix retrieved from `fs`.  
+
+Note that these are huge ($NSR x $NSR x 3) and will require ~60-70GB of RAM to hold onto. Care should be taken if multiple stored in memory.  May take 5-10 minutes to fetch from AWS.
+
+To create a sparse SRM for only a select group of source locations, see [`make_sparse_srm`](@ref).  (that will still call `get_srm`, but will call garbage collection before returning the sparse matrix)
+"""
+function get_srm(emis_type)
+    fs = get_isrm_fs()
+    possible_emis_types = ("PrimaryPM25", "SOA", "pNO3", "pSO4")
+    emis_type in possible_emis_types || error("Emission type $emis_type not in SRM.  Please choose from $possible_emis_types")
+    zarr = fs[var]::ZArray{Float32, 3, Zarr.BloscCompressor, S3Store}
+    arr = zarr[:,:,:]::Array{Float32, 3}
+    return arr
+end
+export get_srm
+
+"""
+    make_sparse_srm(source_idxs, [layer_idxs], emis_type; threshold=0.0)
+
+Make a sparse source receptor matrix.
+* `source_idxs` - A vector of source indexes for which to add the pollution effects to the matrix
+* `layer_idxs` - A vector of layer_idxs for which to 
+* `emis_type` - The emission type for which to make the sparse matrix.
+* `threshold=0.0` - The threshold, in units (μg / m³) / (μg / s), above which to add the value to the sparse matrix.  Adds every nonzero value by default.
+"""
+function make_sparse_srm(source_idxs::AbstractVector, layer_idxs::AbstractVector, var::String; threshold=0.0)
+    @assert length(source_idxs) == length(layer_idxs)
+    sparse_srm = _make_sparse_srm(source_idxs, layer_idxs, var; threshold)
+    GC.gc()
+    return sparse_srm
+end
+make_sparse_srm(source_idxs::AbstractVector, var::String; kwargs...) = make_sparse_srm(source_idxs, ones(eltype(source_idxs), length(source_idxs)), var; kwargs...)
+function _make_sparse_srm(source_idxs, layer_idxs, var; threshold=0.0)
+    # Fetch the array from sr
+    @info "Fetching variable $var from ISRM"
+    arr = get_srm(var)
+    @info "Done Fetching variable $var"
+
+    # Loop through and add the values to the matrix
+    @info "Allocating data to sparse array"
+    II = [UInt32[]  for _ in 1:3]
+    JJ = [UInt32[]  for _ in 1:3]
+    VV = [Float32[] for _ in 1:3]
+    for (source_idx, layer_idx) in unique(zip(source_idxs, layer_idxs))
+        source_idx == 0 && continue
+        for receptor_idx in 1:NSR
+            val = arr[source_idx, receptor_idx, layer_idx] # TODO: is this the right indexing
+            val <= threshold && continue
+            push!(II[layer_idx], source_idx)
+            push!(JJ[layer_idx], receptor_idx)
+            push!(VV[layer_idx], val)
+        end
+    end
+    
+    sparr = map(1:3) do layer_idx
+        sparse(II[layer_idx], JJ[layer_idx], VV[layer_idx], NSR, NSR)
+    end
+
+    return SparseSRM(sparr)
+end
+
+"""
+    struct SparseSRM <: AbstractArray{Float32, 3}
+
+A simple type used for storing a sparse array representation of an SRM.  Returned by [``](@ref)
+"""
+struct SparseSRM <: AbstractArray{Float32, 3}
+    v::Vector{SparseMatrixCSC{Float32, UInt32}}
+end
+export SparseSRM
+Base.size(srm::SparseSRM) = (size(first(srm.v))..., length(srm.v))
+Base.getindex(srm::SparseSRM, i, j, k) = srm.v[k][i,j]
+
+"""
+    compute_receptor_emis(srm, source_idx(s), layer_idx(s), val(s)) -> receptor_emis::Vector
+
+Compute the emissions at each receptor from `srm` for each source specified by `source_idx` and `layer_idx`, which correspond to `val(s)`
+
+    compute_receptor_emis(srm, source_emis::Matrix) -> receptor_emis::Vector
+
+Compute the emissions at each receptor from `srm` for `source_emis`, a `NSR x 3` matrix containing annual average emission rates at each grid cell and layer, in units of micrograms per second.
+"""
+function compute_receptor_emis(srm::SparseSRM, source_idx::Integer, layer_idx::Integer, val::Number)
+    return val .* view(srm.v[layer_idx], source_idx, :)
+end
+export compute_receptor_emis
+
+function compute_receptor_emis(srm, source_idxs::AbstractVector{<:Integer}, layer_idxs::AbstractVector{<:Integer}, vals::AbstractVector{<:Number})
+    source_emis = zeros(size(srm, 1), size(srm, 3))
+    for (source_idx, layer_idx, val) in zip(source_idxs, layer_idxs, vals)
+        source_idx == 0 && continue
+        source_emis[source_idx, layer_idx] += val
+    end
+    return srm(source_emis)
+end
+
+function compute_receptor_emis(srm::SparseSRM, source_emis::Matrix{<:Number})
+    receptor_emis = sum(1:size(srm,3)) do layer_idx
+        view(source_emis, :, layer_idx)' * srm.v[layer_idx]
+    end
+    return receptor_emis'
+end
+
+function compute_receptor_emis(srm::Array{Float32, 3}, source_emis::Matrix{<:Number})
+    receptor_emis = sum(1:size(srm,3)) do layer_idx
+        view(source_emis, :, layer_idx)' * view(srm, :, :, layer_idx)
+    end
+    return receptor_emis'
+end
+
+function compute_receptor_emis(srm::SparseSRM, source_idx::Integer, layer_idx::Integer, val::Number)
+    return val .* view(srm, source_idx, :, layer_idx)
+end
