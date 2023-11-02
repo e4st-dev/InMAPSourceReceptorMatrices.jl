@@ -1,26 +1,26 @@
 @doc """
-    lonlat2isrm() -> trans
+    longlat2isrm() -> trans
 
 Returns a `Proj.Transformation` for converting from (lon, lat) to the LCC coordinate system used by ISRM:
     
     $ISRM_CRS.
 """
-function lonlat2isrm()
+function longlat2isrm()
     Proj.Transformation("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs", ISRM_CRS)
 end
-export lonlat2isrm
+export longlat2isrm
 
 @doc """
-    isrm2lonlat() -> trans
+    isrm2longlat() -> trans
 
 Returns a `Proj.Transformation` for converting to (lon, lat) from the LCC coordinate system used by ISRM:
     
     $ISRM_CRS.
 """
-function isrm2lonlat()
+function isrm2longlat()
     Proj.Transformation(ISRM_CRS, "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
 end
-export isrm2lonlat
+export isrm2longlat
 
 """
     get_isrm_cell_geom() -> geom::Vector{Box{2, Float64}}
@@ -38,17 +38,17 @@ function get_isrm_cell_geom()
 end
 export get_isrm_cell_geom
 
-function get_isrm_cell_geom_lonlat()
-    get_isrm_cell_geom_lonlat(get_idrm_cell_geom())
+function get_isrm_cell_geom_longlat()
+    get_isrm_cell_geom_longlat(get_idrm_cell_geom())
 end
 
 """
-    get_isrm_cell_geom_lonlat(geom::Vector{Box{2, Float64}}) -> geom::Vector{Quadrangle{2, Float64}}
+    get_isrm_cell_geom_longlat(geom::Vector{Box{2, Float64}}) -> geom::Vector{Quadrangle{2, Float64}}
 
 
 """
-function get_isrm_cell_geom_lonlat(geom::Vector{<:Box{2}})
-    trans = isrm2lonlat()
+function get_isrm_cell_geom_longlat(geom::Vector{<:Box{2}})
+    trans = isrm2longlat()
 
     # Transform geometry to lon, lat form.
     map(geom) do b
@@ -66,6 +66,69 @@ function get_isrm_cell_geom_lonlat(geom::Vector{<:Box{2}})
         )
     end
 end
-export get_isrm_cell_geom_lonlat
+export get_isrm_cell_geom_longlat
+
+
+"""
+    get_cell_idxs(longlats, cell_geom::Vector; threshold = 1000)
+
+    get_cell_idxs(longs, lats, cell_geom::Vector; threshold = 1000)
+
+Adds a column for `sr_idx` to `geo_df`, for the source-receptor index corresponding to the indices in `cell_geom`.  If there is no grid cell within `threshold` meters from the point in `geo_df`, gives an index of 0.
+"""
+function get_cell_idxs(longlats, cell_geom::Vector{Box{2,Float64}}; threshold= 1000)
+    n_unmapped = 0
+    cell_idxs = map(longlats) do (lon, lat)
+        p = Point(lon,lat)
+        i = findfirst(area -> p ∈ area, cell_geom)
+        i === nothing || return i
+        d, i2 = findmin(b->dist(b,p), cell_geom)
+        d <= threshold && return i2
+        n_unmapped += 1
+        return 0
+    end
+
+    n_unmapped > 0 && @warn "$n_unmapped points were over $threshold meters away from the nearest grid cell."
+    return cell_idxs
+end
+get_cell_idxs(longs, lats, cell_geom; kwargs...) = get_cell_idxs(zip(longs, lats), cell_geom; kwargs...)
+get_cell_idxs(longlats, cell_data::DataFrame; kwargs...) = get_cell_idxs(longlats, cell_data.geometry; kwargs...)
+export get_cell_idxs
+
+function dist(b::Box{2,T}, p::Point{2,T}) where {T}
+    p ∈ b && return zero(T)
+    px, py = coordinates(p)
+    minb = minimum(b)
+    maxb = maximum(b)
+    minx, miny = coordinates(minb)
+    maxx, maxy = coordinates(maxb)
+
+    if px <= minx
+        if py > maxy
+            return norm((px - minx, py - maxy))
+        elseif py < miny
+            return norm((px - minx, py - miny))
+        else
+            return minx - px
+        end
+    elseif px >= maxx
+        if py > maxy
+            return norm((px - maxx, py - maxy))
+        elseif py < miny
+            return norm((px - maxx, py - miny))
+        else
+            return px - maxx
+        end
+    elseif py >= maxy
+        return py - maxy
+    elseif py <= miny
+        return miny - py
+    else
+        @warn "Edge case not handled!"
+    end
+end
+dist(p::Point{2}, b::Box{2}) = dist(b,p)
+dist(p1::Point, p2::Point) = norm(p1-p2)
+
 
 

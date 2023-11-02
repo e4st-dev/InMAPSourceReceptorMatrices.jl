@@ -9,15 +9,24 @@ To create a sparse SRM for only a select group of source locations, see [`make_s
 """
 function SRM(emis_type)
     fs = get_isrm_fs()
-    possible_emis_types = ("PrimaryPM25", "SOA", "pNO3", "pSO4")
-    emis_type in possible_emis_types || error("Emission type $emis_type not in SRM.  Please choose from $possible_emis_types")
+    emis_type in pm_emis_types() || error("Emission type $emis_type not in ISRM.  Please choose from $possible_emis_types")
     zarr = fs[emis_type]::ZArray{Float32, 3, Zarr.BloscCompressor, S3Store}
     arr = zarr[:,:,:]::Array{Float32, 3}
     return arr
 end
 export SRM
 
-
+pm_emis_types() = ("PrimaryPM25", "SOA", "pNO3", "pSO4", "pNH4")
+primary_emis_types() = ("PM2_5", "VOC", "NOx", "SO2", "NH3")
+function primary2pm(emis_type)
+    emis_type == "PM2_5" && return "PrimaryPM25"
+    emis_type == "VOC" && return "SOA"
+    emis_type == "NOx" && return "pNO3"
+    emis_type == "SO2" && return "pSO2"
+    emis_type == "NH3" && return "pNH4"
+    error("Primary emission type $emis_type not found, choose from $(primary_emis_types())")
+end
+export pm_emis_types, primary_emis_types
 """
     struct SparseSRM <: AbstractArray{Float32, 3}
 
@@ -103,20 +112,25 @@ Compute the emissions at each receptor from `srm` for each source specified by `
     compute_receptor_emis(srm, source_emis::Matrix) -> receptor_emis::Vector
 
 Compute the emissions at each receptor from `srm` for `source_emis`, a `NSR x 3` matrix containing annual average emission rates at each grid cell and layer, in units of micrograms per second.
+
+`srm` can be any of the following types:
+* `Array{Float64, 3}` - returned by [`SRM`](@ref)
+* [`SparseSRM`](@ref)
+* `String` - pm emission type ∈ 
 """
 function compute_receptor_emis(srm::SparseSRM, source_idx::Integer, layer_idx::Integer, val::Number)
     return val .* view(srm.v[layer_idx], source_idx, :)
 end
 export compute_receptor_emis
 
-function compute_receptor_emis(srm, source_idxs::AbstractVector{<:Integer}, layer_idxs::AbstractVector{<:Integer}, vals::AbstractVector{<:Number})
+function compute_receptor_emis(srm::AbstractArray, source_idxs::AbstractVector{<:Integer}, layer_idxs::AbstractVector{<:Integer}, vals::AbstractVector{<:Number})
     source_emis = zeros(size(srm, 1), size(srm, 3))
     for (source_idx, layer_idx, val) in zip(source_idxs, layer_idxs, vals)
         source_idx == 0 && continue
         source_emis[source_idx, layer_idx] += val
     end
     return compute_receptor_emis(srm, source_emis)
-end
+end    
 
 function compute_receptor_emis(srm::SparseSRM, source_emis::Matrix{<:Number})
     receptor_emis = sum(1:size(srm,3)) do layer_idx
@@ -134,4 +148,16 @@ end
 
 function compute_receptor_emis(srm::Array{Float32, 3}, source_idx::Integer, layer_idx::Integer, val::Number)
     return val .* view(srm, source_idx, :, layer_idx)
+end
+
+
+function compute_receptor_emis(emis_type::AbstractString, args...; kwargs...)
+    res = _compute_receptor_emis(emis_type, args...; kwargs...)
+    GC.gc()
+    return res
+end
+
+function _compute_receptor_emis(emis_type, args...; kwargs...)
+    srm = SRM(emis_type)
+    return compute_receptor_emis(srm, args...; kwargs...)
 end

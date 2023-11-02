@@ -1,7 +1,7 @@
 """
     get_isrm_cell_data(vars::AbstractVector{<:AbstractString}; geometry=true) -> cell_data::DataFrame
 """
-function get_isrm_cell_data(vars::AbstractVector{<:AbstractString}; geometry=true, geometry_lonlat=false)
+function get_isrm_cell_data(vars::AbstractVector{<:AbstractString}; geometry=true, geometry_longlat=false)
     df = DataFrame()
     for var in vars
         df[!, var] = get_isrm_cell_data(var)
@@ -9,13 +9,13 @@ function get_isrm_cell_data(vars::AbstractVector{<:AbstractString}; geometry=tru
     if geometry === true
         df[!, :geometry] = get_isrm_cell_geom()
     end
-    if geometry_lonlat === true
+    if geometry_longlat === true
         if geometry === true
             geom = df.geometry
         else
             geom = get_isrm_cell_geom()
         end
-        df[!, :geometry_lonlat] = get_isrm_cell_geom_lonlat(geom)
+        df[!, :geometry_longlat] = get_isrm_cell_geom_longlat(geom)
     end
 
     return df

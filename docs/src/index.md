@@ -16,6 +16,3 @@ For information about InMAP, see their website at `https://inmap.run/`
 using Pkg
 Pkg.add("InMAPSRM")
 ```
-
-## Usage
-See documentation [here](https://e4st-dev.github.io/InMAPSRM.jl/dev/)

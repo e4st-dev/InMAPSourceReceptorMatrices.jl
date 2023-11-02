@@ -1,0 +1,3 @@
+```@autodocs
+Order = [:type, :function]
+```
