@@ -1,7 +1,7 @@
 using Test, InMAPSRM
 using Meshes
 using DataFrames
-using Sys
+using .Sys
 
 @testset "Test InMAPSRM" begin
     @testset "Test cell data access" begin
