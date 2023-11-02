@@ -1,44 +1,77 @@
 @doc """
-    get_srm(emis_type) -> srm::Array{Float32, 3}
+    SRM(emis_type) -> srm::Array{Float32, 3}
 
 Returns source receptor matrix retrieved from `fs`.  
 
 Note that these are huge ($NSR x $NSR x 3) and will require ~60-70GB of RAM to hold onto. Care should be taken if multiple stored in memory.  May take 5-10 minutes to fetch from AWS.
 
-To create a sparse SRM for only a select group of source locations, see [`make_sparse_srm`](@ref).  (that will still call `get_srm`, but will call garbage collection before returning the sparse matrix)
+To create a sparse SRM for only a select group of source locations, see [`make_sparse_srm`](@ref).  (that will still call `SRM`, but will call garbage collection before returning the sparse matrix)
 """
-function get_srm(emis_type)
+function SRM(emis_type)
     fs = get_isrm_fs()
     possible_emis_types = ("PrimaryPM25", "SOA", "pNO3", "pSO4")
     emis_type in possible_emis_types || error("Emission type $emis_type not in SRM.  Please choose from $possible_emis_types")
-    zarr = fs[var]::ZArray{Float32, 3, Zarr.BloscCompressor, S3Store}
+    zarr = fs[emis_type]::ZArray{Float32, 3, Zarr.BloscCompressor, S3Store}
     arr = zarr[:,:,:]::Array{Float32, 3}
     return arr
 end
-export get_srm
+export SRM
+
 
 """
-    make_sparse_srm(source_idxs, [layer_idxs], emis_type; threshold=0.0)
+    struct SparseSRM <: AbstractArray{Float32, 3}
+
+A simple type used for storing a sparse array representation of an SRM.
+"""
+struct SparseSRM <: AbstractArray{Float32, 3}
+    v::Vector{SparseMatrixCSC{Float32, UInt32}}
+end
+export SparseSRM
+Base.size(srm::SparseSRM) = (size(first(srm.v))..., length(srm.v))
+Base.getindex(srm::SparseSRM, i, j, k) = srm.v[k][i,j]
+
+
+"""
+    SparseSRM(emis_type, source_idxs, [layer_idxs]; threshold=0.0)
 
 Make a sparse source receptor matrix.
+* `emis_type` - The emission type for which to make the sparse matrix.
 * `source_idxs` - A vector of source indexes for which to add the pollution effects to the matrix
 * `layer_idxs` - A vector of layer_idxs for which to 
-* `emis_type` - The emission type for which to make the sparse matrix.
 * `threshold=0.0` - The threshold, in units (μg / m³) / (μg / s), above which to add the value to the sparse matrix.  Adds every nonzero value by default.
 """
-function make_sparse_srm(source_idxs::AbstractVector, layer_idxs::AbstractVector, var::String; threshold=0.0)
+function SparseSRM(var::AbstractString, source_idxs::AbstractVector, layer_idxs::AbstractVector; threshold=0.0)
     @assert length(source_idxs) == length(layer_idxs)
     sparse_srm = _make_sparse_srm(source_idxs, layer_idxs, var; threshold)
     GC.gc()
     return sparse_srm
 end
-make_sparse_srm(source_idxs::AbstractVector, var::String; kwargs...) = make_sparse_srm(source_idxs, ones(eltype(source_idxs), length(source_idxs)), var; kwargs...)
-function _make_sparse_srm(source_idxs, layer_idxs, var; threshold=0.0)
+
+SparseSRM(var::AbstractString, source_idxs::AbstractVector; kwargs...) = SparseSRM(var, source_idxs, ones(eltype(source_idxs), length(source_idxs)); kwargs...)
+
+"""
+    SparseSRM(srm, source_idxs, [layer_idxs]; threshold=0.0)
+
+Make a sparse source receptor matrix from an SRM (`Array{Float32, 3}`).
+* `emis_type` - The emission type for which to make the sparse matrix.
+* `source_idxs` - A vector of source indexes for which to add the pollution effects to the matrix
+* `layer_idxs` - A vector of layer_idxs for which to 
+* `threshold=0.0` - The threshold, in units (μg / m³) / (μg / s), above which to add the value to the sparse matrix.  Adds every nonzero value by default.
+"""
+function SparseSRM(srm, source_idxs::AbstractVector, layer_idxs::AbstractVector; kwargs...)
+    return _make_sparse_srm(srm, source_idxs, layer_idxs; kwargs...)
+end
+
+function _make_sparse_srm(var::AbstractString, source_idxs, layer_idxs; threshold=0.0)
     # Fetch the array from sr
     @info "Fetching variable $var from ISRM"
-    arr = get_srm(var)
+    srm = SRM(var)
     @info "Done Fetching variable $var"
 
+    _make_sparse_srm(srm, source_idxs, layer_idxs; threshold)
+end
+
+function _make_sparse_srm(srm::Array{Float32, 3}, source_idxs, layer_idxs; threshold=0.0)
     # Loop through and add the values to the matrix
     @info "Allocating data to sparse array"
     II = [UInt32[]  for _ in 1:3]
@@ -47,7 +80,7 @@ function _make_sparse_srm(source_idxs, layer_idxs, var; threshold=0.0)
     for (source_idx, layer_idx) in unique(zip(source_idxs, layer_idxs))
         source_idx == 0 && continue
         for receptor_idx in 1:NSR
-            val = arr[source_idx, receptor_idx, layer_idx] # TODO: is this the right indexing
+            val = srm[source_idx, receptor_idx, layer_idx] # TODO: is this the right indexing
             val <= threshold && continue
             push!(II[layer_idx], source_idx)
             push!(JJ[layer_idx], receptor_idx)
@@ -61,18 +94,6 @@ function _make_sparse_srm(source_idxs, layer_idxs, var; threshold=0.0)
 
     return SparseSRM(sparr)
 end
-
-"""
-    struct SparseSRM <: AbstractArray{Float32, 3}
-
-A simple type used for storing a sparse array representation of an SRM.  Returned by [``](@ref)
-"""
-struct SparseSRM <: AbstractArray{Float32, 3}
-    v::Vector{SparseMatrixCSC{Float32, UInt32}}
-end
-export SparseSRM
-Base.size(srm::SparseSRM) = (size(first(srm.v))..., length(srm.v))
-Base.getindex(srm::SparseSRM, i, j, k) = srm.v[k][i,j]
 
 """
     compute_receptor_emis(srm, source_idx(s), layer_idx(s), val(s)) -> receptor_emis::Vector
@@ -94,7 +115,7 @@ function compute_receptor_emis(srm, source_idxs::AbstractVector{<:Integer}, laye
         source_idx == 0 && continue
         source_emis[source_idx, layer_idx] += val
     end
-    return srm(source_emis)
+    return compute_receptor_emis(srm, source_emis)
 end
 
 function compute_receptor_emis(srm::SparseSRM, source_emis::Matrix{<:Number})
@@ -111,6 +132,6 @@ function compute_receptor_emis(srm::Array{Float32, 3}, source_emis::Matrix{<:Num
     return receptor_emis'
 end
 
-function compute_receptor_emis(srm::SparseSRM, source_idx::Integer, layer_idx::Integer, val::Number)
+function compute_receptor_emis(srm::Array{Float32, 3}, source_idx::Integer, layer_idx::Integer, val::Number)
     return val .* view(srm, source_idx, :, layer_idx)
 end
