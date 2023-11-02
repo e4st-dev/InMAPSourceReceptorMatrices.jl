@@ -15,6 +15,6 @@ makedocs(
 )
 
 deploydocs(
-    repo = "https://github.com/e4st-dev/E4ST.jl",
+    repo = "https://github.com/e4st-dev/InMAPSRM.jl",
     devbranch = "main"
 )
