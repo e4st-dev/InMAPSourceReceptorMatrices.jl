@@ -39,7 +39,7 @@ end
 export get_isrm_cell_geom
 
 function get_isrm_cell_geom_longlat()
-    get_isrm_cell_geom_longlat(get_idrm_cell_geom())
+    get_isrm_cell_geom_longlat(get_isrm_cell_geom())
 end
 
 """
