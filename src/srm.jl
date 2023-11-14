@@ -1,3 +1,16 @@
+pm_emis_types() = ("PrimaryPM25", "SOA", "pNO3", "pSO4", "pNH4")
+primary_emis_types() = ("PM2_5", "VOC", "NOx", "SO2", "NH3")
+function primary2pm(emis_type)
+    emis_type == "PM2_5" && return "PrimaryPM25"
+    emis_type == "VOC" && return "SOA"
+    emis_type == "NOx" && return "pNO3"
+    emis_type == "SO2" && return "pSO2"
+    emis_type == "NH3" && return "pNH4"
+    error("Primary emission type $emis_type not found, choose from $(primary_emis_types())")
+end
+export pm_emis_types, primary_emis_types
+
+
 @doc """
     SRM(emis_type) -> srm::Array{Float32, 3}
 
@@ -16,17 +29,6 @@ function SRM(emis_type)
 end
 export SRM
 
-pm_emis_types() = ("PrimaryPM25", "SOA", "pNO3", "pSO4", "pNH4")
-primary_emis_types() = ("PM2_5", "VOC", "NOx", "SO2", "NH3")
-function primary2pm(emis_type)
-    emis_type == "PM2_5" && return "PrimaryPM25"
-    emis_type == "VOC" && return "SOA"
-    emis_type == "NOx" && return "pNO3"
-    emis_type == "SO2" && return "pSO2"
-    emis_type == "NH3" && return "pNH4"
-    error("Primary emission type $emis_type not found, choose from $(primary_emis_types())")
-end
-export pm_emis_types, primary_emis_types
 """
     struct SparseSRM <: AbstractArray{Float32, 3}
 
