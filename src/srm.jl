@@ -3,7 +3,7 @@
 
 Returns source receptor matrix retrieved from `fs`.  
 
-Note that these are huge ($NSR x $NSR x 3) and will require ~60-70GB of RAM to hold onto. Care should be taken if multiple stored in memory.  May take 5-10 minutes to fetch from AWS.
+Note that these are huge ($NSR x $NSR x 3) and will require ~60-70GB of RAM to hold onto. Index via `(receptor, source, layer)`. Care should be taken if multiple stored in memory.  May take 5-10 minutes to fetch from AWS.
 
 To create a sparse SRM for only a select group of source locations, see [`make_sparse_srm`](@ref).  (that will still call `SRM`, but will call garbage collection before returning the sparse matrix)
 """
@@ -89,10 +89,10 @@ function _make_sparse_srm(srm::Array{Float32, 3}, source_idxs, layer_idxs; thres
     for (source_idx, layer_idx) in unique(zip(source_idxs, layer_idxs))
         source_idx == 0 && continue
         for receptor_idx in 1:NSR
-            val = srm[source_idx, receptor_idx, layer_idx] # TODO: is this the right indexing
+            val = srm[rectptor_idx, source_idx, layer_idx] # TODO: is this the right indexing
             val <= threshold && continue
-            push!(II[layer_idx], source_idx)
-            push!(JJ[layer_idx], receptor_idx)
+            push!(II[layer_idx], receptor_idx)
+            push!(JJ[layer_idx], source_idx)
             push!(VV[layer_idx], val)
         end
     end
@@ -134,20 +134,20 @@ end
 
 function compute_receptor_emis(srm::SparseSRM, source_emis::Matrix{<:Number})
     receptor_emis = sum(1:size(srm,3)) do layer_idx
-        view(source_emis, :, layer_idx)' * srm.v[layer_idx]
+        srm.v[layer_idx] * view(source_emis, :, layer_idx)
     end
-    return receptor_emis'
+    return receptor_emis
 end
 
 function compute_receptor_emis(srm::Array{Float32, 3}, source_emis::Matrix{<:Number})
     receptor_emis = sum(1:size(srm,3)) do layer_idx
-        view(source_emis, :, layer_idx)' * view(srm, :, :, layer_idx)
+        view(srm, :, :, layer_idx) * view(source_emis, :, layer_idx)
     end
-    return receptor_emis'
+    return receptor_emis
 end
 
 function compute_receptor_emis(srm::Array{Float32, 3}, source_idx::Integer, layer_idx::Integer, val::Number)
-    return val .* view(srm, source_idx, :, layer_idx)
+    return val .* view(srm, :, source_idx, layer_idx)
 end
 
 
