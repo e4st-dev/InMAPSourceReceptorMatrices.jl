@@ -16,7 +16,7 @@ get_isrm_fs
 
 # Geometry
 ```@docs
-longlat2irsm
+longlat2isrm
 isrm2longlat
 get_isrm_cell_geom
 get_isrm_cell_geom_longlat
