@@ -2,7 +2,7 @@ InMAPSRM.jl
 ===========
 ![GitHub contributors](https://img.shields.io/github/contributors/e4st-dev/InMAPSRM.jl?logo=GitHub)
 ![GitHub last commit](https://img.shields.io/github/last-commit/e4st-dev/InMAPSRM.jl/main?logo=GitHub)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![CI](https://github.com/e4st-dev/InMAPSRM.jl/workflows/CI/badge.svg)](https://github.com/e4st-dev/InMAPSRM.jl/actions?query=workflow%3ACI)
 [![Code Coverage](https://codecov.io/gh/e4st-dev/InMAPSRM.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/e4st-dev/InMAPSRM.jl)
 [![In Development](https://img.shields.io/badge/docs-dev-blue.svg)](https://e4st-dev.github.io/InMAPSRM.jl/dev/)
