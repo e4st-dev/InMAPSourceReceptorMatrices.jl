@@ -58,6 +58,11 @@ function get_isrm_cell_data(var::AbstractString)
 end
 export get_isrm_cell_data
 
+"""
+    get_isrm_variable_summary() -> summary::DataFrame
+
+Returns a summary of the variables in the source receptor matrix
+"""
 function get_isrm_variable_summary()
     fs = get_isrm_fs()
     df = DataFrame(variable=>String[], size=>[])

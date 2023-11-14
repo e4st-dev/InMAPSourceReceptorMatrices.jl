@@ -1,7 +1,7 @@
 @doc """
     SRM(emis_type) -> srm::Array{Float32, 3}
 
-Returns source receptor matrix retrieved from `fs`.  
+Returns source receptor matrix retrieved from `fs`, with `emis_type` ∈ $(pm_emis_types())
 
 Note that these are huge ($NSR x $NSR x 3) and will require ~60-70GB of RAM to hold onto. Index via `(receptor, source, layer)`. Care should be taken if multiple stored in memory.  May take 5-10 minutes to fetch from AWS.
 
@@ -40,11 +40,11 @@ Base.size(srm::SparseSRM) = (size(first(srm.v))..., length(srm.v))
 Base.getindex(srm::SparseSRM, i, j, k) = srm.v[k][i,j]
 
 
-"""
+@doc """
     SparseSRM(emis_type, source_idxs, [layer_idxs]; threshold=0.0)
 
-Make a sparse source receptor matrix.
-* `emis_type` - The emission type for which to make the sparse matrix.
+Make a sparse source receptor matrix, indexable via `(receptor, source, layer)`.
+* `emis_type` - The emission type for which to make the sparse matrix, ∈ $(pm_emis_types())
 * `source_idxs` - A vector of source indexes for which to add the pollution effects to the matrix
 * `layer_idxs` - A vector of layer_idxs for which to 
 * `threshold=0.0` - The threshold, in units (μg / m³) / (μg / s), above which to add the value to the sparse matrix.  Adds every nonzero value by default.
@@ -104,7 +104,7 @@ function _make_sparse_srm(srm::Array{Float32, 3}, source_idxs, layer_idxs; thres
     return SparseSRM(sparr)
 end
 
-"""
+@doc """
     compute_receptor_emis(srm, source_idx(s), layer_idx(s), val(s)) -> receptor_emis::Vector
 
 Compute the emissions at each receptor from `srm` for each source specified by `source_idx` and `layer_idx`, which correspond to `val(s)`
@@ -116,7 +116,7 @@ Compute the emissions at each receptor from `srm` for `source_emis`, a `NSR x 3`
 `srm` can be any of the following types:
 * `Array{Float64, 3}` - returned by [`SRM`](@ref)
 * [`SparseSRM`](@ref)
-* `String` - pm emission type ∈ 
+* `String` - pm emission type ∈ `$(pm_emis_types())`
 """
 function compute_receptor_emis(srm::SparseSRM, source_idx::Integer, layer_idx::Integer, val::Number)
     return val .* view(srm.v[layer_idx], source_idx, :)

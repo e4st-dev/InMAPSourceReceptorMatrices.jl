@@ -45,7 +45,7 @@ end
 """
     get_isrm_cell_geom_longlat(geom::Vector{Box{2, Float64}}) -> geom::Vector{Quadrangle{2, Float64}}
 
-
+Returns the cell geometry of the SRM in longlat form.
 """
 function get_isrm_cell_geom_longlat(geom::Vector{<:Box{2}})
     trans = isrm2longlat()
@@ -70,13 +70,29 @@ export get_isrm_cell_geom_longlat
 
 
 """
-    get_cell_idxs(longlats, cell_geom::Vector; threshold = 1000)
+    get_cell_idxs(longlats, cell_geom::Vector; threshold = 1000) -> cell_idxs
 
-    get_cell_idxs(longs, lats, cell_geom::Vector; threshold = 1000)
+    get_cell_idxs(longs, lats, cell_geom::Vector; threshold = 1000) -> cell_idxs
 
-Adds a column for `sr_idx` to `geo_df`, for the source-receptor index corresponding to the indices in `cell_geom`.  If there is no grid cell within `threshold` meters from the point in `geo_df`, gives an index of 0.
+Return the indices of the closest cells (in `cell_geom`) for each of the longs and lats supplied. If there is no grid cell within `threshold` meters from the point in `geo_df`, gives an index of 0. `cell_geom` can either be the original geometry (represented as `Box`es), or the longlat geometry (represented as `Quadrangle`s).
 """
 function get_cell_idxs(longlats, cell_geom::Vector{Box{2,Float64}}; threshold= 1000)
+    n_unmapped = 0
+    trans = longlat2isrm()
+    cell_idxs = map(longlats) do (lon, lat)
+        p = Point(trans(lon,lat))
+        i = findfirst(area -> p ∈ area, cell_geom)
+        i === nothing || return i
+        d, i2 = findmin(b->dist(b,p), cell_geom)
+        d <= threshold && return i2
+        n_unmapped += 1
+        return 0
+    end
+
+    n_unmapped > 0 && @warn "$n_unmapped points were over $threshold meters away from the nearest grid cell."
+    return cell_idxs
+end
+function get_cell_idxs(longlats, cell_geom_longlat::Vector{Quadrangle{2,Float64}}; threshold= 1000)
     n_unmapped = 0
     cell_idxs = map(longlats) do (lon, lat)
         p = Point(lon,lat)

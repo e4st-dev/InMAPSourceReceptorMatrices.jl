@@ -45,7 +45,7 @@ export connect_to_isrm!
 """
     get_isrm_fs() -> fs
 
-Return the 
+Return the AWS file system. 
 """
 function get_isrm_fs()
     isdefined(_isrm_state, :fs) ? _isrm_state.fs : connect_to_isrm!()
