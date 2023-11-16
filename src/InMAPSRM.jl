@@ -58,7 +58,7 @@ export get_isrm_fs
 Runs the source receptor matrix for the given source emissions, where each row represents an emitter.  Note that `source_emis` must have the following columns:
 * `latitude <: Number` - latitude of the source
 * `longitude <: Number` - longitude of the source
-* `layer_idx <: Integer` - layer index ∈ {1,2,3}, for ground-level, low-stack, and high-stack emissions, respectively
+* `layer_idx <: Integer` - layer index ∈ {1,2,3}, for effective emission heights at ground level (emissions between 0 and 57 m), low level (57–379 m), and high level (>379 m) respectively
 * `<emis_type> <: Number` - the average emissions rate, in μg / s, for emission type `<emis_type>` ∈ `{PM2_5, NOx, SO2, VOC, NH3}`.  There can be between 1 and 5 of these columns.
 * (optional) `source_idx <: Int64` - which grid cell index corresponds to the source.  If given, `latitude` and `longitude` no longer used.
 
