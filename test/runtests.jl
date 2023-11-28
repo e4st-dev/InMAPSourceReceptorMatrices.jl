@@ -1,9 +1,9 @@
-using Test, InMAPSRM
+using Test, InMAPSourceReceptorMatrices
 using Meshes
 using DataFrames
 using .Sys
 
-@testset "Test InMAPSRM" begin
+@testset "Test InMAPSourceReceptorMatrices" begin
     @testset "Test cell data access" begin
         @test get_isrm_cell_data("MortalityRate") isa Vector
         cell_data = get_isrm_cell_data(["MortalityRate", "NOxDryDep"], geometry_longlat = true)

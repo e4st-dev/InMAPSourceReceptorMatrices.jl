@@ -1,9 +1,9 @@
-using Documenter, InMAPSRM
+using Documenter, InMAPSourceReceptorMatrices
 
 makedocs(
-    modules = [InMAPSRM],
+    modules = [InMAPSourceReceptorMatrices],
     doctest = false,
-    sitename = "InMAPSRM.jl",
+    sitename = "InMAPSourceReceptorMatrices.jl",
     pages = [
         "Home" => "index.md",
         "API" => "api.md",
@@ -15,6 +15,6 @@ makedocs(
 )
 
 deploydocs(
-    repo = "https://github.com/e4st-dev/InMAPSRM.jl",
+    repo = "https://github.com/e4st-dev/InMAPSourceReceptorMatrices.jl",
     devbranch = "main"
 )

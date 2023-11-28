@@ -65,7 +65,7 @@ Returns a summary of the variables in the source receptor matrix
 """
 function get_isrm_variable_summary()
     fs = get_isrm_fs()
-    df = DataFrame(variable=>String[], size=>[])
+    df = DataFrame(:variable=>String[], :size=>[])
     for (var, z) in fs.arrays
         push!(df, (var, size(z)))
     end

@@ -1,4 +1,4 @@
-name = "InMAPSRM"
+name = "InMAPSourceReceptorMatrices"
 uuid = "4ce82931-4c10-4b80-a308-e2bd97408557"
 authors = ["Ethan Russell <erussell@rff.org>"]
 version = "0.1.0"
@@ -6,22 +6,23 @@ version = "0.1.0"
 [deps]
 AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Meshes = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
 Proj = "c94c279d-25a6-4763-9509-64d165bea63e"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Zarr = "0a941bbe-ad1d-11e8-39d9-ab76183a1d99"
 
-[extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
 [compat]
-julia = "^1"
 AWS = "^1.90"
 DataFrames = "^1"
 Meshes = "^0.35"
 Proj = "^1.7"
 SparseArrays = "^1"
 Zarr = "^0.9"
+julia = "^1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test"]

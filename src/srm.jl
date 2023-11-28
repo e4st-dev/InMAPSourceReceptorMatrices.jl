@@ -53,7 +53,7 @@ Make a sparse source receptor matrix, indexable via `(receptor, source, layer)`.
 """
 function SparseSRM(var::AbstractString, source_idxs::AbstractVector, layer_idxs::AbstractVector; threshold=0.0)
     @assert length(source_idxs) == length(layer_idxs)
-    sparse_srm = _make_sparse_srm(source_idxs, layer_idxs, var; threshold)
+    sparse_srm = _make_sparse_srm(var, source_idxs, layer_idxs; threshold)
     GC.gc()
     return sparse_srm
 end
@@ -91,7 +91,7 @@ function _make_sparse_srm(srm::Array{Float32, 3}, source_idxs, layer_idxs; thres
     for (source_idx, layer_idx) in unique(zip(source_idxs, layer_idxs))
         source_idx == 0 && continue
         for receptor_idx in 1:NSR
-            val = srm[rectptor_idx, source_idx, layer_idx] # TODO: is this the right indexing
+            val = srm[receptor_idx, source_idx, layer_idx] # TODO: is this the right indexing
             val <= threshold && continue
             push!(II[layer_idx], receptor_idx)
             push!(JJ[layer_idx], source_idx)
