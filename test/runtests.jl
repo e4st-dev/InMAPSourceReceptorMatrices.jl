@@ -19,7 +19,7 @@ using .Sys
             srm = SRM("PrimaryPM25")
             @test srm isa Array{Float32, 3}
             sparse_srm = SparseSRM(srm, [5000, 10000], [1,2])
-            @test sparse_srm isa AbstractArray{Float32, 3}
+            @test sparse_srm isa Vector{SparseMatrixCSC{Float32, UInt32}}
 
             emis_srm =  compute_receptor_emis(srm, 5000, 1, 1.0)
             @test emis_srm isa Vector{Float64}
