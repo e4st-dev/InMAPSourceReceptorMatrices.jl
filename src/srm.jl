@@ -50,6 +50,9 @@ end
 export SparseSRM
 
 _size(srm::_SparseSRM) = (size(first(srm))..., length(srm))
+_size(srm::_SparseSRM,i) = _size(srm)[i]
+_size(srm) = size(srm)
+_size(srm,i) = size(srm,i)
 
 SparseSRM(var::AbstractString, source_idxs::AbstractVector; kwargs...) = SparseSRM(var, source_idxs, ones(eltype(source_idxs), length(source_idxs)); kwargs...)
 
@@ -119,7 +122,7 @@ end
 export compute_receptor_emis
 
 function compute_receptor_emis(srm::AbstractArray, source_idxs::AbstractVector{<:Integer}, layer_idxs::AbstractVector{<:Integer}, vals::AbstractVector{<:Number})
-    source_emis = zeros(size(srm, 1), size(srm, 3))
+    source_emis = zeros(_size(srm, 1), _size(srm, 3))
     for (source_idx, layer_idx, val) in zip(source_idxs, layer_idxs, vals)
         source_idx <= 0 && continue
         source_emis[source_idx, layer_idx] += val
@@ -128,7 +131,7 @@ function compute_receptor_emis(srm::AbstractArray, source_idxs::AbstractVector{<
 end    
 
 function compute_receptor_emis(srm::_SparseSRM, source_emis::Matrix{<:Number})
-    receptor_emis = sum(1:size(srm,3)) do layer_idx
+    receptor_emis = sum(1:_size(srm,3)) do layer_idx
         srm[layer_idx] * view(source_emis, :, layer_idx)
     end
     return receptor_emis
