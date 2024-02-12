@@ -117,7 +117,7 @@ Compute the emissions at each receptor from `srm` for `source_emis`, a `NSR x 3`
 * `String` - pm emission type ∈ `$(pm_emis_types())`
 """
 function compute_receptor_emis(srm::_SparseSRM, source_idx::Integer, layer_idx::Integer, val::Number)
-    return val .* view(srm[layer_idx], source_idx, :)
+    return val .* view(srm[layer_idx], :, source_idx)
 end
 export compute_receptor_emis
 
